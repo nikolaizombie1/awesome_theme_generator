@@ -8,6 +8,13 @@ enum Rgb {
 }
 
 #[derive(Debug)]
+struct RgbValues {
+    red: u8,
+    green: u8,
+    blue: u8,
+}
+
+#[derive(Debug)]
 struct ComponentCount {
     red: usize,
     green: usize,
@@ -16,8 +23,8 @@ struct ComponentCount {
 
 #[derive(Debug)]
 struct Theme {
-    primary_color: u8,
-    secondary_color: u8,
+    primary_color: RgbValues,
+    secondary_color: RgbValues,
 }
 
 trait Component {
@@ -114,16 +121,55 @@ impl ComponentCount {
     } 
 }
 
+impl Component for RgbValues {
+    fn max(&self) -> Rgb {
+        if self.red >= self.green && self.red >= self.blue {
+            Rgb::Red
+        } else if self.green >= self.red && self.green >= self.blue {
+            Rgb::Green
+        } else {
+            Rgb::Blue
+        }
+    }
+    fn middle(&self) -> Rgb {
+        if self.red >= self.green && self.red <= self.blue {
+            Rgb::Red
+        } else if self.green >= self.red && self.green <= self.blue {
+            Rgb::Green
+        } else {
+            Rgb::Blue
+        }
+    }
+    fn min(&self) -> Rgb {
+        if self.red <= self.green && self.red <= self.blue {
+            Rgb::Red
+        } else if self.green <= self.red && self.green <= self.blue {
+            Rgb::Green
+        } else {
+            Rgb::Blue
+        }
+    }
+}
+
+impl RgbValues {
+    fn get(&self, rgb: Rgb) -> u8 {
+	match rgb {
+	    Rgb::Red => self.red,
+	    Rgb::Green => self.green,
+	    Rgb::Blue => self.blue,
+	}
+    } 
+}
+
 fn main() {
-    let current_wallpapers = std::fs::read_to_string("/home/uwu/.config/nitrogen/bg-saved.cfg")
+    let current_wallpaper = std::fs::read_to_string("/home/uwu/.config/nitrogen/bg-saved.cfg")
 	.unwrap()
 	.lines()
 	.filter(|l| l.contains("file="))
 	.map(|l| l[5..l.len()].to_owned())
-	.collect::<Vec<_>>();
-    for wallpaper in current_wallpapers {
-	println!("{:?}",calculate_theme(&PathBuf::from(wallpaper)));
-    }
+	.collect::<Vec<_>>().first().unwrap().to_owned();
+    let theme = calculate_theme(&PathBuf::from(current_wallpaper));
+    println!("{:?}",theme);
 }
 
 fn calculate_theme(path: &PathBuf) -> Theme {
@@ -181,23 +227,22 @@ fn calculate_theme(path: &PathBuf) -> Theme {
     green_handle.join().unwrap();
     blue_handle.join().unwrap();
 
-    let primary_color = match max_component_counts.max() {
-	Rgb::Red => *avg_red.lock().unwrap(),
-	Rgb::Green => *avg_green.lock().unwrap(),
-	Rgb::Blue => *avg_blue.lock().unwrap(),
-    };
+    let primary_color = RgbValues {red: *avg_red.lock().unwrap(), green: *avg_green.lock().unwrap(), blue: *avg_blue.lock().unwrap()};
+    let secondary_color = complementary_color(&primary_color);
 
-    let secondary_color = match max_component_counts.middle() {
-	Rgb::Red => *avg_red.lock().unwrap(),
-	Rgb::Green => *avg_green.lock().unwrap(),
-	Rgb::Blue => *avg_blue.lock().unwrap(),
-    };
-
-   Theme { primary_color, secondary_color }
+    Theme { primary_color, secondary_color }
 }
 
 fn average(pixels: &[u8]) -> u8 {
     let sum: usize = pixels.iter().map(|x| *x as usize).sum();
     let avg: u8 = ((sum as f64)/(pixels.len() as f64)) as u8;
     avg
+}
+
+fn complementary_color(rgb: &RgbValues) -> RgbValues {
+    let magnitude = (rgb.get(rgb.max()) as usize) + (rgb.get(rgb.min()) as usize);
+    let red = (magnitude as u8) - rgb.red;
+    let green = (magnitude as u8) - rgb.green;
+    let blue = (magnitude as u8) - rgb.blue;
+    RgbValues { red, green, blue }
 }
