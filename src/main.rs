@@ -1,5 +1,5 @@
 use image::{Rgb as ImageRgb};
-use std::{sync::{Arc,RwLock,Mutex}, thread};
+use std::{sync::{Arc,RwLock,Mutex}, thread, path::{PathBuf, Path}};
 
 enum Rgb {
     Red,
@@ -14,9 +14,16 @@ struct ComponentCount {
     blue: usize,
 }
 
+#[derive(Debug)]
+struct Theme {
+    primary_color: u8,
+    secondary_color: u8,
+}
+
 trait Component {
     fn max(&self) -> Rgb;
     fn middle(&self) -> Rgb;
+    fn min(&self) -> Rgb;
 }
 
 impl Component for ImageRgb<u8> {
@@ -43,7 +50,18 @@ impl Component for ImageRgb<u8> {
         } else {
             Rgb::Blue
         }
-	
+    }
+    fn min(&self) -> Rgb {
+        let red = self.0[0];
+        let green = self.0[1];
+        let blue = self.0[2];
+        if red <= green && red <= blue {
+            Rgb::Red
+        } else if green <= red && green <= blue {
+            Rgb::Green
+        } else {
+            Rgb::Blue
+        }
     }
 }
 
@@ -61,6 +79,15 @@ impl Component for ComponentCount {
         if self.red >= self.green && self.red <= self.blue {
             Rgb::Red
         } else if self.green >= self.red && self.green <= self.blue {
+            Rgb::Green
+        } else {
+            Rgb::Blue
+        }
+    }
+    fn min(&self) -> Rgb {
+        if self.red <= self.green && self.red <= self.blue {
+            Rgb::Red
+        } else if self.green <= self.red && self.green <= self.blue {
             Rgb::Green
         } else {
             Rgb::Blue
@@ -88,14 +115,24 @@ impl ComponentCount {
 }
 
 fn main() {
-    let image = image::io::Reader::open("/home/uwu/Linux-Mass-Storage/Documents/Rust_Stuff/awesome_theme_generator/F3AbO5CbEAEnfe9.jpeg")
+    let current_wallpapers = std::fs::read_to_string("/home/uwu/.config/nitrogen/bg-saved.cfg")
+	.unwrap()
+	.lines()
+	.filter(|l| l.contains("file="))
+	.map(|l| l[5..l.len()].to_owned())
+	.collect::<Vec<_>>();
+    for wallpaper in current_wallpapers {
+	println!("{:?}",calculate_theme(&PathBuf::from(wallpaper)));
+    }
+}
+
+fn calculate_theme(path: &PathBuf) -> Theme {
+    let pixels = image::io::Reader::open(path)
 	.unwrap()
 	.decode()
 	.unwrap()
         .thumbnail(1000, 1000)
-	.to_rgb8();
-    let pixels = image.pixels();
-    let pixels = pixels.map(|x| *x).collect::<Vec<_>>();
+	.to_rgb8().pixels().copied().collect::<Vec<_>>();
     let pixels = Arc::new(RwLock::new(pixels));
     let mut max_component_counts = ComponentCount {
         red: 0,
@@ -144,20 +181,19 @@ fn main() {
     green_handle.join().unwrap();
     blue_handle.join().unwrap();
 
-    let max = match max_component_counts.max() {
-	Rgb::Red => avg_red.lock().unwrap().clone(),
-	Rgb::Green => avg_green.lock().unwrap().clone(),
-	Rgb::Blue => avg_blue.lock().unwrap().clone(),
+    let primary_color = match max_component_counts.max() {
+	Rgb::Red => *avg_red.lock().unwrap(),
+	Rgb::Green => *avg_green.lock().unwrap(),
+	Rgb::Blue => *avg_blue.lock().unwrap(),
     };
 
-    let middle = match max_component_counts.middle() {
-	Rgb::Red => avg_red.lock().unwrap().clone(),
-	Rgb::Green => avg_green.lock().unwrap().clone(),
-	Rgb::Blue => avg_blue.lock().unwrap().clone(),
+    let secondary_color = match max_component_counts.middle() {
+	Rgb::Red => *avg_red.lock().unwrap(),
+	Rgb::Green => *avg_green.lock().unwrap(),
+	Rgb::Blue => *avg_blue.lock().unwrap(),
     };
-    
-    let primary_color = !max;
-    let secondary_color = !middle;
+
+   Theme { primary_color, secondary_color }
 }
 
 fn average(pixels: &[u8]) -> u8 {
