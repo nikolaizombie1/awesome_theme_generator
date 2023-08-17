@@ -25,6 +25,8 @@ struct ComponentCount {
 pub struct Theme {
     pub primary_color: RgbValues,
     pub secondary_color: RgbValues,
+    pub active_text_color: RgbValues,
+    pub normal_text_color: RgbValues,
 }
 
 trait Component {
@@ -160,10 +162,9 @@ impl RgbValues {
 	}
     } 
     pub fn hex(&self) -> String {
-	format!("{:x?}{:x?}{:x?}",self.red,self.green,self.blue).to_ascii_uppercase()
+	format!("{:02x?}{:02x?}{:02x?}",self.red,self.green,self.blue).to_ascii_uppercase()
     }
 }
-
 
 pub fn calculate_theme(path: &PathBuf) -> Theme {
     let pixels = image::io::Reader::open(path)
@@ -222,8 +223,19 @@ pub fn calculate_theme(path: &PathBuf) -> Theme {
 
     let primary_color = RgbValues {red: *avg_red.lock().unwrap(), green: *avg_green.lock().unwrap(), blue: *avg_blue.lock().unwrap()};
     let secondary_color = complementary_color(&primary_color);
+    let active_text_color = if primary_color.red > 128 && primary_color.green > 128 && primary_color.blue > 128 {
+	RgbValues {red: 0, green: 0, blue: 0}
+    } else {
+	RgbValues {red: 255, green: 255, blue: 255}
+    };
 
-    Theme { primary_color, secondary_color }
+    let normal_text_color = if active_text_color.red == 0 && active_text_color.green == 0 && active_text_color.blue == 0 {
+	RgbValues {red: 60, green: 60, blue: 60}
+    } else {
+	RgbValues {red: 195, green: 195, blue: 195}
+    };
+
+    Theme { primary_color, secondary_color, active_text_color, normal_text_color }
 }
 
 fn average(pixels: &[u8]) -> u8 {

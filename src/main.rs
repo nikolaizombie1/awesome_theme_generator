@@ -1,6 +1,6 @@
 use std::{path::PathBuf, io::Write};
 use regex::Regex;
-use theme_calculation::{RgbValues, Theme};
+use theme_calculation::RgbValues;
 use std::fs;
 
 mod theme_calculation;
@@ -18,6 +18,8 @@ fn main() {
 
     theme_lua = replace_property("bg_normal", theme.primary_color, &theme_lua);
     theme_lua = replace_property("bg_focus", theme.secondary_color, &theme_lua);
+    theme_lua = replace_property("fg_focus", theme.active_text_color, &theme_lua);
+    theme_lua = replace_property("fg_normal", theme.normal_text_color, &theme_lua);
 
     let mut theme_lua_modified = fs::File::create("/home/uwu/.config/awesome/theme.lua").unwrap();
     theme_lua_modified.write_all(theme_lua.as_bytes()).unwrap();
