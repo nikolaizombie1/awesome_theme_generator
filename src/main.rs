@@ -23,6 +23,7 @@ fn main() {
 
     let mut theme_lua_modified = fs::File::create("/home/uwu/.config/awesome/theme.lua").unwrap();
     theme_lua_modified.write_all(theme_lua.as_bytes()).unwrap();
+    std::process::Command::new("bash").arg("-c").arg("echo 'awesome.restart()' | awesome-client").output().unwrap();
 }
 
 fn replace_property(prop: &str, color: RgbValues, theme_lua: &str) -> String {
