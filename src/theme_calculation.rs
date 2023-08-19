@@ -1,5 +1,5 @@
 use image::{Rgb as ImageRgb};
-use std::{sync::{Arc,RwLock,Mutex}, thread, path::PathBuf};
+use std::{sync::{Arc,RwLock,Mutex}, thread::{self, JoinHandle}, path::PathBuf};
 
 enum Rgb {
     Red,
@@ -104,25 +104,6 @@ impl Component for ComponentCount {
     }
 }
 
-impl ComponentCount {
-    fn red(&self) -> usize {
-	self.red
-    } 
-    fn green(&self) -> usize {
-	self.green
-    }
-    fn blue(&self) -> usize {
-	self.blue
-    }
-    fn get(&self, rgb: Rgb) -> usize {
-	match rgb {
-	    Rgb::Red => self.red(),
-	    Rgb::Green => self.green(),
-	    Rgb::Blue => self.blue(),
-	}
-    } 
-}
-
 impl Component for RgbValues {
     fn max(&self) -> Rgb {
         if self.red >= self.green && self.red >= self.blue {
@@ -166,7 +147,7 @@ impl RgbValues {
     }
 }
 
-pub fn calculate_theme(path: &PathBuf) -> Theme {
+pub fn calculate_theme(path: &PathBuf,median: bool) -> Theme {
     let pixels = image::io::Reader::open(path)
 	.unwrap()
 	.decode()
@@ -190,32 +171,9 @@ pub fn calculate_theme(path: &PathBuf) -> Theme {
     let avg_green: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
     let avg_blue: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
 
-    let shared_pixels = pixels.clone();
-    let shared_avg_red =  avg_red.clone();
-    let red_handle = thread::spawn(move || {
-	let mut red_slice = shared_pixels.read().unwrap().iter().map(|p| p.0[0]).collect::<Vec<_>>();
-	red_slice.sort();
-	let mut shared_avg_red = shared_avg_red.lock().unwrap();
-	*shared_avg_red = average(&red_slice);
-    });
-
-    let shared_pixels = pixels.clone();
-    let shared_avg_green =  avg_green.clone();
-    let green_handle = thread::spawn(move || {
-	let mut green_slice = shared_pixels.read().unwrap().iter().map(|p| p.0[1]).collect::<Vec<_>>();
-	green_slice.sort();
-	let mut shared_avg_green = shared_avg_green.lock().unwrap();
-	*shared_avg_green = average(&green_slice);
-    });
-
-    let shared_pixels = pixels.clone();
-    let shared_avg_blue =  avg_blue.clone();
-    let blue_handle = thread::spawn(move || {
-	let mut blue_slice = shared_pixels.read().unwrap().iter().map(|p| p.0[2]).collect::<Vec<_>>();
-	blue_slice.sort();
-	let mut shared_avg_blue = shared_avg_blue.lock().unwrap();
-	*shared_avg_blue = average(&blue_slice);
-    });
+    let red_handle = spawn_color_thread(pixels.clone(), 0, avg_red.clone(), median);
+    let green_handle = spawn_color_thread(pixels.clone(), 1, avg_green.clone(), median);
+    let blue_handle = spawn_color_thread(pixels.clone(), 2, avg_blue.clone(), median);
 
     red_handle.join().unwrap();
     green_handle.join().unwrap();
@@ -242,6 +200,29 @@ fn average(pixels: &[u8]) -> u8 {
     let sum: usize = pixels.iter().map(|x| *x as usize).sum();
     let avg: u8 = ((sum as f64)/(pixels.len() as f64)) as u8;
     avg
+}
+
+fn median(color_slice: &[u8]) -> u8 {
+    if color_slice.len()%2 == 0 {
+	let left_middle = color_slice[(((color_slice.len() as f64)/(2.0)) - 1.0).floor() as usize];
+	let right_middle = color_slice[((color_slice.len() as f64)/(2.0)).floor() as usize];
+	(((right_middle as f64) + (left_middle as f64))/2.0) as u8
+    } else {
+	color_slice[(((color_slice.len() as f64)/2.0) - 1.0) as usize]
+    }
+}
+
+fn spawn_color_thread(pixels: Arc<RwLock<Vec<image::Rgb<u8>>>>, color_index: usize, color: Arc<Mutex<u8>>, median_flag: bool) -> JoinHandle<()> {
+    thread::spawn(move || {
+	let mut slice = pixels.read().unwrap().iter().map(|p| p.0[color_index]).collect::<Vec<_>>();
+	slice.sort();
+	let mut shared_avg = color.lock().unwrap();
+	if median_flag {
+	    *shared_avg = median(&slice);
+	} else {
+	    *shared_avg = average(&slice);
+	}
+    })
 }
 
 fn complementary_color(rgb: &RgbValues) -> RgbValues {

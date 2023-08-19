@@ -12,6 +12,8 @@ struct Args {
     theme_lua: PathBuf,
     #[arg(short, long, required = true)]
     wallpaper_index: usize,
+    #[arg(short, long)]
+    median: bool,
 }
 
 fn is_file(input: &str) -> anyhow::Result<PathBuf> {
@@ -35,7 +37,7 @@ fn main() {
 	.filter(|l| l.contains("file="))
 	.map(|l| l[5..l.len()].to_owned())
 	.collect::<Vec<_>>().get(args.wallpaper_index).unwrap().to_owned();
-    let theme = theme_calculation::calculate_theme(&PathBuf::from(current_wallpaper));
+    let theme = theme_calculation::calculate_theme(&PathBuf::from(current_wallpaper), args.median);
 
     let mut theme_lua = fs::read_to_string(&args.theme_lua).unwrap();
 
@@ -52,5 +54,5 @@ fn main() {
 fn replace_property(prop: &str, color: RgbValues, theme_lua: &str) -> String {
     let patern = r#"theme\."#.to_owned() + prop + r##"\s*=\s*"#[0-9a-fA-F]{6}""##;
     let pattern = Regex::new(&patern).unwrap();
-    pattern.replace(&theme_lua, format!("theme.{} = \"#{}\"",prop,color.hex())).to_string()
+    pattern.replace(theme_lua, format!("theme.{} = \"#{}\"",prop,color.hex())).to_string()
 }
