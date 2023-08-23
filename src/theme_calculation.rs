@@ -19,13 +19,6 @@ pub struct RgbValues {
 }
 
 #[derive(Debug)]
-struct ComponentCount {
-    red: usize,
-    green: usize,
-    blue: usize,
-}
-
-#[derive(Debug)]
 pub struct Theme {
     pub primary_color: RgbValues,
     pub secondary_color: RgbValues,
@@ -71,36 +64,6 @@ impl Component for ImageRgb<u8> {
         if red <= green && red <= blue {
             Rgb::Red
         } else if green <= red && green <= blue {
-            Rgb::Green
-        } else {
-            Rgb::Blue
-        }
-    }
-}
-
-impl Component for ComponentCount {
-    fn max(&self) -> Rgb {
-        if self.red >= self.green && self.red >= self.blue {
-            Rgb::Red
-        } else if self.green >= self.red && self.green >= self.blue {
-            Rgb::Green
-        } else {
-            Rgb::Blue
-        }
-    }
-    fn middle(&self) -> Rgb {
-        if self.red >= self.green && self.red <= self.blue {
-            Rgb::Red
-        } else if self.green >= self.red && self.green <= self.blue {
-            Rgb::Green
-        } else {
-            Rgb::Blue
-        }
-    }
-    fn min(&self) -> Rgb {
-        if self.red <= self.green && self.red <= self.blue {
-            Rgb::Red
-        } else if self.green <= self.red && self.green <= self.blue {
             Rgb::Green
         } else {
             Rgb::Blue
@@ -162,18 +125,7 @@ pub fn calculate_theme(path: &PathBuf, median: bool) -> Theme {
         .copied()
         .collect::<Vec<_>>();
     let pixels = Arc::new(RwLock::new(pixels));
-    let mut max_component_counts = ComponentCount {
-        red: 0,
-        green: 0,
-        blue: 0,
-    };
-    for pixel in pixels.read().unwrap().iter() {
-        match pixel.max() {
-            Rgb::Red => max_component_counts.red += 1,
-            Rgb::Green => max_component_counts.green += 1,
-            Rgb::Blue => max_component_counts.blue += 1,
-        }
-    }
+
     let avg_red: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
     let avg_green: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
     let avg_blue: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
