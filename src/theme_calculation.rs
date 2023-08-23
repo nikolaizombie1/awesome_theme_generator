@@ -28,7 +28,6 @@ pub struct Theme {
 
 trait Component {
     fn max(&self) -> Rgb;
-    fn middle(&self) -> Rgb;
     fn min(&self) -> Rgb;
 }
 
@@ -40,18 +39,6 @@ impl Component for ImageRgb<u8> {
         if red >= green && red >= blue {
             Rgb::Red
         } else if green >= red && green >= blue {
-            Rgb::Green
-        } else {
-            Rgb::Blue
-        }
-    }
-    fn middle(&self) -> Rgb {
-        let red = self.0[0];
-        let green = self.0[1];
-        let blue = self.0[2];
-        if red >= green && red <= blue {
-            Rgb::Red
-        } else if green >= red && green <= blue {
             Rgb::Green
         } else {
             Rgb::Blue
@@ -81,15 +68,6 @@ impl Component for RgbValues {
             Rgb::Blue
         }
     }
-    fn middle(&self) -> Rgb {
-        if self.red >= self.green && self.red <= self.blue {
-            Rgb::Red
-        } else if self.green >= self.red && self.green <= self.blue {
-            Rgb::Green
-        } else {
-            Rgb::Blue
-        }
-    }
     fn min(&self) -> Rgb {
         if self.red <= self.green && self.red <= self.blue {
             Rgb::Red
@@ -110,7 +88,7 @@ impl RgbValues {
         }
     }
     pub fn hex(&self) -> String {
-        format!("{:02x?}{:02x?}{:02x?}", self.red, self.green, self.blue).to_ascii_uppercase()
+        format!("{:02x?}{:02x?}{:02x?}", self.red, self.green, self.blue).to_ascii_lowercase()
     }
 }
 
