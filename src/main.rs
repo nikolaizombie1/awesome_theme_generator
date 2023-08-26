@@ -14,6 +14,8 @@ struct Args {
     wallpaper_index: usize,
     #[arg(short, long)]
     median: bool,
+    #[arg(short, long)]
+    restart: bool,
 }
 
 fn is_file(input: &str) -> anyhow::Result<PathBuf> {
@@ -48,7 +50,9 @@ fn main() {
 
     let mut theme_lua_modified = fs::File::create(&args.theme_lua).unwrap();
     theme_lua_modified.write_all(theme_lua.as_bytes()).unwrap();
-    std::process::Command::new("bash").arg("-c").arg("echo 'awesome.restart()' | awesome-client").output().unwrap();
+    if args.restart {
+	std::process::Command::new("bash").arg("-c").arg("echo 'awesome.restart()' | awesome-client").output().unwrap();
+    }
 }
 
 fn replace_property(prop: &str, color: RgbValues, theme_lua: &str) -> String {
