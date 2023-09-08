@@ -2,9 +2,14 @@ use std::{path::PathBuf, io::Write};
 use regex::Regex;
 use theme_calculation::RgbValues;
 use std::fs;
-use clap::Parser;
+use clap::{Parser,ArgGroup};
 
 #[derive(Parser)]
+#[clap(group(
+    ArgGroup::new("centrality")
+    .required(true)
+    .args(&["average","median","prevalance"])
+))]
 struct Args {
     #[arg(short, long, required = true, value_parser = is_file)]
     nitrogen_bg_saved: PathBuf,
@@ -12,8 +17,12 @@ struct Args {
     theme_lua: PathBuf,
     #[arg(short, long, required = true)]
     wallpaper_index: usize,
-    #[arg(short, long)]
+    #[arg(short, long, group = "centrality")]
+    average: bool,
+    #[arg(short, long, group = "centrality")]
     median: bool,
+    #[arg(short, long, group = "centrality")]
+    prevalance: bool,
     #[arg(short, long)]
     restart: bool,
 }
@@ -32,6 +41,13 @@ mod theme_calculation;
 
 fn main() {
     let args = Args::parse();
+    let centrality = if args.average {
+        theme_calculation::Centrality::Average
+    } else if args.median {
+        theme_calculation::Centrality::Median
+    } else {
+        theme_calculation::Centrality::Prevalent
+    };
 
     let current_wallpaper = std::fs::read_to_string(&args.nitrogen_bg_saved)
 	.unwrap()
@@ -39,7 +55,7 @@ fn main() {
 	.filter(|l| l.contains("file="))
 	.map(|l| l[5..l.len()].to_owned())
 	.collect::<Vec<_>>().get(args.wallpaper_index).unwrap().to_owned();
-    let theme = theme_calculation::calculate_theme(&PathBuf::from(current_wallpaper), args.median);
+    let theme = theme_calculation::calculate_theme(&PathBuf::from(current_wallpaper), centrality);
 
     let mut theme_lua = fs::read_to_string(&args.theme_lua).unwrap();
 

@@ -5,6 +5,13 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+#[derive(PartialEq,Copy,Clone)]
+pub enum Centrality {
+    Average,
+    Median,
+    Prevalent,
+}
+
 enum Rgb {
     Red,
     Green,
@@ -92,7 +99,7 @@ impl RgbValues {
     }
 }
 
-pub fn calculate_theme(path: &PathBuf, median: bool) -> Theme {
+pub fn calculate_theme(path: &PathBuf, centrality: Centrality) -> Theme {
     let pixels = image::io::Reader::open(path).unwrap().decode().unwrap();
     let scaled_height = ((pixels.height() as f64) / 4.0) as u32;
     let scaled_width = ((pixels.width() as f64) / 4.0) as u32;
@@ -108,13 +115,23 @@ pub fn calculate_theme(path: &PathBuf, median: bool) -> Theme {
     let avg_green: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
     let avg_blue: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
 
-    let red_handle = spawn_color_thread(pixels.clone(), 0, avg_red.clone(), median);
-    let green_handle = spawn_color_thread(pixels.clone(), 1, avg_green.clone(), median);
-    let blue_handle = spawn_color_thread(pixels.clone(), 2, avg_blue.clone(), median);
+    match centrality {
+        Centrality::Average | Centrality::Median => {
+            let red_handle = spawn_color_thread(pixels.clone(), 0, avg_red.clone(), centrality);
+            let green_handle = spawn_color_thread(pixels.clone(), 1, avg_green.clone(), centrality);
+            let blue_handle = spawn_color_thread(pixels.clone(), 2, avg_blue.clone(), centrality);
 
-    red_handle.join().unwrap();
-    green_handle.join().unwrap();
-    blue_handle.join().unwrap();
+            red_handle.join().unwrap();
+            green_handle.join().unwrap();
+            blue_handle.join().unwrap();
+        }
+        Centrality::Prevalent => {
+            let prevalent_pixel = prevalent(pixels.clone());
+            *avg_red.lock().unwrap() = prevalent_pixel.red;
+            *avg_green.lock().unwrap() = prevalent_pixel.green;
+            *avg_blue.lock().unwrap() = prevalent_pixel.blue;
+        }
+    }
 
     let primary_color = RgbValues {
         red: *avg_red.lock().unwrap(),
@@ -179,11 +196,23 @@ fn median(color_slice: &[u8]) -> u8 {
     }
 }
 
+fn prevalent(pixels: Arc<RwLock<Vec<image::Rgb<u8>>>>) -> RgbValues {
+  let mut pixel_prevalence_count = std::collections::HashMap::new(); 
+  let pixels_bind =  pixels.read().unwrap();
+  for pixel in pixels_bind.iter() {
+    let count = pixel_prevalence_count.entry(pixel).or_insert(0);
+    *count += 1;
+  }
+  
+  let prevalant = pixel_prevalence_count.iter().max_by(|x,y| x.1.cmp(y.1)).unwrap().0;
+  RgbValues { red: prevalant.0[0], green: prevalant.0[1], blue: prevalant.0[2] }
+}
+
 fn spawn_color_thread(
     pixels: Arc<RwLock<Vec<image::Rgb<u8>>>>,
     color_index: usize,
     color: Arc<Mutex<u8>>,
-    median_flag: bool,
+    centrality: Centrality,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         let mut slice = pixels
@@ -194,9 +223,9 @@ fn spawn_color_thread(
             .collect::<Vec<_>>();
         slice.sort();
         let mut shared_avg = color.lock().unwrap();
-        if median_flag {
+        if centrality == Centrality::Median {
             *shared_avg = median(&slice);
-        } else {
+        } else if centrality == Centrality::Average {
             *shared_avg = average(&slice);
         }
     })
