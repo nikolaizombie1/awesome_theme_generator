@@ -140,7 +140,7 @@ pub fn calculate_theme(path: &PathBuf, centrality: Centrality) -> Theme {
     };
     let secondary_color = complementary_color(&primary_color);
     let active_text_color =
-        if primary_color.red > 128 && primary_color.green > 128 && primary_color.blue > 128 {
+        if secondary_color.red > 128 && secondary_color.green > 128 && secondary_color.blue > 128 {
             RgbValues {
                 red: 0,
                 green: 0,
@@ -232,9 +232,5 @@ fn spawn_color_thread(
 }
 
 fn complementary_color(rgb: &RgbValues) -> RgbValues {
-    let magnitude = (rgb.get(rgb.max()) as usize) + (rgb.get(rgb.min()) as usize);
-    let red = (magnitude - (rgb.red as usize)) as u8;
-    let green = (magnitude - (rgb.green as usize)) as u8;
-    let blue = (magnitude - (rgb.blue as usize)) as u8;
-    RgbValues { red, green, blue }
+    RgbValues { red: 255 - rgb.red, green: 255 - rgb.green, blue: 255 - rgb.blue }
 }
