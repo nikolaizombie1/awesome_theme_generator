@@ -5,7 +5,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-#[derive(PartialEq,Copy,Clone)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum Centrality {
     Average,
     Median,
@@ -197,15 +197,23 @@ fn median(color_slice: &[u8]) -> u8 {
 }
 
 fn prevalent(pixels: Arc<RwLock<Vec<image::Rgb<u8>>>>) -> RgbValues {
-  let mut pixel_prevalence_count = std::collections::HashMap::new(); 
-  let pixels_bind =  pixels.read().unwrap();
-  for pixel in pixels_bind.iter() {
-    let count = pixel_prevalence_count.entry(pixel).or_insert(0);
-    *count += 1;
-  }
-  
-  let prevalant = pixel_prevalence_count.iter().max_by(|x,y| x.1.cmp(y.1)).unwrap().0;
-  RgbValues { red: prevalant.0[0], green: prevalant.0[1], blue: prevalant.0[2] }
+    let mut pixel_prevalence_count = std::collections::HashMap::new();
+    let pixels_bind = pixels.read().unwrap();
+    for pixel in pixels_bind.iter() {
+        let count = pixel_prevalence_count.entry(pixel).or_insert(0);
+        *count += 1;
+    }
+
+    let prevalant = pixel_prevalence_count
+        .iter()
+        .max_by(|x, y| x.1.cmp(y.1))
+        .unwrap()
+        .0;
+    RgbValues {
+        red: prevalant.0[0],
+        green: prevalant.0[1],
+        blue: prevalant.0[2],
+    }
 }
 
 fn spawn_color_thread(
@@ -232,5 +240,9 @@ fn spawn_color_thread(
 }
 
 fn complementary_color(rgb: &RgbValues) -> RgbValues {
-    RgbValues { red: 255 - rgb.red, green: 255 - rgb.green, blue: 255 - rgb.blue }
+    RgbValues {
+        red: 255 - rgb.red,
+        green: 255 - rgb.green,
+        blue: 255 - rgb.blue,
+    }
 }
