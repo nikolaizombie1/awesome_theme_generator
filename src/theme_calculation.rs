@@ -87,13 +87,6 @@ impl Component for RgbValues {
 }
 
 impl RgbValues {
-    fn get(&self, rgb: Rgb) -> u8 {
-        match rgb {
-            Rgb::Red => self.red,
-            Rgb::Green => self.green,
-            Rgb::Blue => self.blue,
-        }
-    }
     pub fn hex(&self) -> String {
         format!("{:02x?}{:02x?}{:02x?}", self.red, self.green, self.blue).to_ascii_lowercase()
     }

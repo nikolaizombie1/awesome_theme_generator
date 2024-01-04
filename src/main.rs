@@ -38,6 +38,35 @@ fn is_file(input: &str) -> anyhow::Result<PathBuf> {
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+struct Screen {
+    screen_index: usize,
+    wallpaper_path: String,
+}
+
+enum Property {
+    BgNormal,
+    BgFocus,
+    FgNormal,
+    FgFocus,
+}
+
+impl std::fmt::Display for Property {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::BgNormal => write!(f, "{}", "bg_normal"),
+            Self::BgFocus => write!(f, "{}", "bg_focus"),
+            Self::FgNormal => write!(f, "{}", "fg_normal"),
+            Self::FgFocus => write!(f, "{}", "fg_focus"),
+        }
+    }
+}
+
+enum Generality {
+    Global,
+    Bar,
+}
+
 mod theme_calculation;
 
 fn main() {
@@ -50,23 +79,88 @@ fn main() {
         theme_calculation::Centrality::Prevalent
     };
 
-    let mut current_wallpapers = std::fs::read_to_string(&args.nitrogen_bg_saved)
+    let wallpapers = std::fs::read_to_string(&args.nitrogen_bg_saved)
         .unwrap()
         .lines()
-        .filter(|l| l.contains("file="))
+        .filter(|l| l.contains("file=") || l.contains("xin"))
         .map(|l| l[5..l.len()].to_owned())
         .collect::<Vec<_>>();
 
-    current_wallpapers.sort();
+    let mut screens: Vec<Screen> = vec![];
+
+    for i in (0..wallpapers.len()).filter(|x| x % 2 == 0) {
+        let index = wallpapers[i]
+            .split('_')
+            .collect::<String>()
+            .chars()
+            .filter(|c| c != &']')
+            .collect::<String>()
+            .parse::<i64>()
+            .unwrap();
+        let index: usize = (index + 2) as usize;
+        let wallpaper = &wallpapers[i + 1];
+        screens.push(Screen {
+            screen_index: index,
+            wallpaper_path: wallpaper.to_owned(),
+        });
+    }
+
+    screens.sort();
 
     let mut theme_lua = fs::read_to_string(&args.theme_lua).unwrap();
 
-    for wallpaper in current_wallpapers {
-        let theme = theme_calculation::calculate_theme(&PathBuf::from(wallpaper), centrality);
-        theme_lua = replace_property("bg_normal", theme.primary_color, &theme_lua);
-        theme_lua = replace_property("bg_focus", theme.secondary_color, &theme_lua);
-        theme_lua = replace_property("fg_focus", theme.active_text_color, &theme_lua);
-        theme_lua = replace_property("fg_normal", theme.normal_text_color, &theme_lua);
+    let theme = theme_calculation::calculate_theme(
+        &PathBuf::from(screens.clone()[0].clone().wallpaper_path),
+        centrality,
+    );
+    theme_lua = replace_global_property(
+        Property::BgNormal,
+        theme.primary_color,
+        &theme_lua,
+        Generality::Global,
+        &screens[0],
+    );
+    theme_lua = replace_global_property(
+        Property::BgFocus,
+        theme.secondary_color,
+        &theme_lua,
+        Generality::Global,
+        &screens[0],
+    );
+    theme_lua = replace_global_property(
+        Property::FgFocus,
+        theme.active_text_color,
+        &theme_lua,
+        Generality::Global,
+        &screens[0],
+    );
+    theme_lua = replace_global_property(
+        Property::FgNormal,
+        theme.normal_text_color,
+        &theme_lua,
+        Generality::Global,
+        &screens[0],
+    );
+
+    for screen in screens.clone() {
+        let theme = theme_calculation::calculate_theme(
+            &PathBuf::from(screen.clone().wallpaper_path),
+            centrality,
+        );
+        theme_lua = replace_global_property(
+            Property::FgNormal,
+            theme.normal_text_color,
+            &theme_lua,
+            Generality::Bar,
+            &screen,
+        );
+        theme_lua = replace_global_property(
+            Property::BgNormal,
+            theme.primary_color,
+            &theme_lua,
+            Generality::Bar,
+            &screen,
+        );
     }
 
     let mut theme_lua_modified = fs::File::create(&args.theme_lua).unwrap();
@@ -80,10 +174,33 @@ fn main() {
     }
 }
 
-fn replace_property(prop: &str, color: RgbValues, theme_lua: &str) -> String {
-    let patern = r#"theme\."#.to_owned() + prop + r##"\s*=\s*"#[0-9a-fA-F]{6}""##;
+fn replace_global_property(
+    prop: Property,
+    color: RgbValues,
+    theme_lua: &str,
+    generality: Generality,
+    screen: &Screen,
+) -> String {
+    let general = match generality {
+        Generality::Global => "".to_owned(),
+        Generality::Bar => format!("{}{}{}", "bar", screen.screen_index, r#"\."#),
+    };
+    let patern = format!(
+        "{}{}{}{}",
+        r#"theme\."#.to_owned(),
+        general,
+        prop,
+        r##"\s*=\s*"#[0-9a-fA-F]{6}""##
+    );
     let pattern = Regex::new(&patern).unwrap();
+    let general = match generality {
+        Generality::Global => "".to_owned(),
+        Generality::Bar => format!("bar{}.", screen.screen_index),
+    };
     pattern
-        .replace(theme_lua, format!("theme.{} = \"#{}\"", prop, color.hex()))
+        .replace(
+            theme_lua,
+            format!("theme.{}{} = \"#{}\"", general, prop, color.hex()),
+        )
         .to_string()
 }
