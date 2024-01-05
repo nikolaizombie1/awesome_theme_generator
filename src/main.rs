@@ -54,10 +54,10 @@ enum Property {
 impl std::fmt::Display for Property {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Self::BgNormal => write!(f, "{}", "bg_normal"),
-            Self::BgFocus => write!(f, "{}", "bg_focus"),
-            Self::FgNormal => write!(f, "{}", "fg_normal"),
-            Self::FgFocus => write!(f, "{}", "fg_focus"),
+            Self::BgNormal => write!(f, "bg_normal"),
+            Self::BgFocus => write!(f, "bg_focus"),
+            Self::FgNormal => write!(f, "fg_normal"),
+            Self::FgFocus => write!(f, "fg_focus"),
         }
     }
 }
@@ -147,6 +147,27 @@ fn main() {
             &PathBuf::from(screen.clone().wallpaper_path),
             centrality,
         );
+        if !Regex::new(&format!(
+            "local bar{} = {}\ntheme.bar{} = bar{}",
+            screen.screen_index, r#"\{\}"#, screen.screen_index, screen.screen_index
+        ))
+        .unwrap()
+        .is_match(&theme_lua)
+        {
+            theme_lua = Regex::new("return theme")
+                .unwrap()
+                .replace(
+                    &theme_lua,
+                    format!(
+                        "local bar{} = {}\ntheme.bar{} = bar{}\nreturn theme",
+                        screen.screen_index,
+                        r#"{}"#,
+                        screen.screen_index,
+                        screen.screen_index
+                    ),
+                )
+                .to_string();
+        }
         theme_lua = replace_global_property(
             Property::FgNormal,
             theme.normal_text_color,
@@ -197,10 +218,16 @@ fn replace_global_property(
         Generality::Global => "".to_owned(),
         Generality::Bar => format!("bar{}.", screen.screen_index),
     };
-    pattern
-        .replace(
-            theme_lua,
-            format!("theme.{}{} = \"#{}\"", general, prop, color.hex()),
-        )
-        .to_string()
+    let replacement_text = format!("theme.{}{} = \"#{}\"", general, prop, color.hex());
+    match pattern.is_match(theme_lua) {
+        true => {
+            return pattern.replace(theme_lua, replacement_text).to_string();
+        }
+        false => {
+            return Regex::new("return theme")
+                .unwrap()
+                .replace(theme_lua, format!("{}\nreturn theme", replacement_text))
+                .to_string();
+        }
+    }
 }
