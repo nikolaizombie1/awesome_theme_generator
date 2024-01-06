@@ -110,9 +110,9 @@ fn main() {
     let screens = screens
         .into_iter()
         .enumerate()
-        .map(|f| Screen {
-            screen_index: f.0 + 1,
-            wallpaper_path: f.1.wallpaper_path,
+        .map(|s| Screen {
+            screen_index: s.0 + 1,
+            wallpaper_path: s.1.wallpaper_path,
         })
         .collect::<Vec<Screen>>();
 
