@@ -107,6 +107,15 @@ fn main() {
 
     screens.sort();
 
+    let screens = screens
+        .into_iter()
+        .enumerate()
+        .map(|f| Screen {
+            screen_index: f.0 + 1,
+            wallpaper_path: f.1.wallpaper_path,
+        })
+        .collect::<Vec<Screen>>();
+
     let mut theme_lua = fs::read_to_string(&args.theme_lua).unwrap();
 
     let theme = theme_calculation::calculate_theme(
@@ -160,10 +169,7 @@ fn main() {
                     &theme_lua,
                     format!(
                         "local bar{} = {}\ntheme.bar{} = bar{}\nreturn theme",
-                        screen.screen_index,
-                        r#"{}"#,
-                        screen.screen_index,
-                        screen.screen_index
+                        screen.screen_index, r#"{}"#, screen.screen_index, screen.screen_index
                     ),
                 )
                 .to_string();
