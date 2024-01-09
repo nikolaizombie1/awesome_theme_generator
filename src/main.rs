@@ -122,28 +122,28 @@ fn main() {
         &PathBuf::from(screens.clone()[0].clone().wallpaper_path),
         centrality,
     );
-    theme_lua = replace_global_property(
+    theme_lua = replace_property(
         Property::BgNormal,
         theme.primary_color,
         &theme_lua,
         Generality::Global,
         &screens[0],
     );
-    theme_lua = replace_global_property(
+    theme_lua = replace_property(
         Property::BgFocus,
         theme.secondary_color,
         &theme_lua,
         Generality::Global,
         &screens[0],
     );
-    theme_lua = replace_global_property(
+    theme_lua = replace_property(
         Property::FgFocus,
         theme.active_text_color,
         &theme_lua,
         Generality::Global,
         &screens[0],
     );
-    theme_lua = replace_global_property(
+    theme_lua = replace_property(
         Property::FgNormal,
         theme.normal_text_color,
         &theme_lua,
@@ -174,14 +174,14 @@ fn main() {
                 )
                 .to_string();
         }
-        theme_lua = replace_global_property(
+        theme_lua = replace_property(
             Property::FgNormal,
             theme.normal_text_color,
             &theme_lua,
             Generality::Bar,
             &screen,
         );
-        theme_lua = replace_global_property(
+        theme_lua = replace_property(
             Property::BgNormal,
             theme.primary_color,
             &theme_lua,
@@ -201,7 +201,7 @@ fn main() {
     }
 }
 
-fn replace_global_property(
+fn replace_property(
     prop: Property,
     color: RgbValues,
     theme_lua: &str,
