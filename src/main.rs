@@ -40,7 +40,7 @@ fn is_file(input: &str) -> anyhow::Result<PathBuf> {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 struct Screen {
-    screen_index: usize,
+    screen_index: i64,
     wallpaper_path: String,
 }
 
@@ -97,7 +97,6 @@ fn main() {
             .collect::<String>()
             .parse::<i64>()
             .unwrap();
-        let index: usize = (index + 2) as usize;
         let wallpaper = &wallpapers[i + 1];
         screens.push(Screen {
             screen_index: index,
@@ -111,7 +110,7 @@ fn main() {
         .into_iter()
         .enumerate()
         .map(|s| Screen {
-            screen_index: s.0 + 1,
+            screen_index: s.0 as i64 + 1,
             wallpaper_path: s.1.wallpaper_path,
         })
         .collect::<Vec<Screen>>();
